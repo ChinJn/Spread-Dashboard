@@ -13,7 +13,7 @@ from db        import fetch_data, fetch_sample_data
 from transform import (
     clean, add_spread_columns, agg_by_provider,
     agg_by_provider_symbol, spread_over_time,
-    heatmap_provider_hour, compute_kpis,
+    heatmap_provider_hour, compute_kpis, agg_by_hour,
 )
 from config import CACHE_TTL, DEFAULT_TOP_N_PROVIDERS, DISPLAY_TIMEZONE
 
@@ -233,7 +233,37 @@ st.divider()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SECTION 5 — DETAILED TABLE (provider × symbol)
+# SECTION 5 — HOURLY SPREAD TABLE
+# ─────────────────────────────────────────────────────────────────────────────
+st.subheader("🕐 Hourly Spread Summary")
+
+hour_agg = agg_by_hour(df)
+hour_display = hour_agg.copy()
+hour_display["hour"] = hour_display["hour"].apply(lambda h: f"{h:02d}:00")
+for c in ["weighted_avg_spread", "avg_spread", "min_spread", "max_spread"]:
+    hour_display[c] = hour_display[c].map("{:.5f}".format)
+hour_display["total_volume"] = hour_display["total_volume"].map("{:,.2f}".format)
+
+st.dataframe(
+    hour_display,
+    use_container_width=True,
+    hide_index=True,
+    column_config={
+        "hour":                st.column_config.TextColumn("Hour"),
+        "weighted_avg_spread": st.column_config.TextColumn("Wtd Avg Spread"),
+        "avg_spread":          st.column_config.TextColumn("Avg Spread"),
+        "min_spread":          st.column_config.TextColumn("Min Spread"),
+        "max_spread":          st.column_config.TextColumn("Max Spread"),
+        "total_volume":        st.column_config.TextColumn("Volume (lots)"),
+        "trade_count":         st.column_config.NumberColumn("Trades"),
+    },
+)
+
+st.divider()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SECTION 6 — DETAILED TABLE (provider × symbol)
 # ─────────────────────────────────────────────────────────────────────────────
 st.subheader("📋 Detailed Stats — Provider × Symbol")
 

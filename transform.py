@@ -156,7 +156,29 @@ def heatmap_provider_hour(df: pd.DataFrame) -> pd.DataFrame:
     return pivot
 
 
-# ── 7. Global KPIs (for KPI card row) ────────────────────────────────────────
+# ── 7. Aggregate by hour ─────────────────────────────────────────────────────
+def agg_by_hour(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Returns one row per hour (0–23) with spread KPIs.
+    """
+    grp = df.groupby("hour")
+    agg = grp.apply(
+        lambda g: pd.Series({
+            "weighted_avg_spread": (
+                g["notional"].sum() / g["size"].sum()
+                if g["size"].sum() > 0 else np.nan
+            ),
+            "avg_spread":   g["spread"].mean(),
+            "min_spread":   g["spread"].min(),
+            "max_spread":   g["spread"].max(),
+            "total_volume": g["size"].sum(),
+            "trade_count":  len(g),
+        })
+    ).reset_index()
+    return agg.sort_values("hour")
+
+
+# ── 8. Global KPIs (for KPI card row) ────────────────────────────────────────
 def compute_kpis(df: pd.DataFrame) -> dict:
     vol = df["size"].sum()
     return {
