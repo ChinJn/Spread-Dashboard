@@ -46,8 +46,8 @@ def build_query(date_from: str, date_to: str) -> str:
             `order`.digits          AS digits,
             `order`.open_milli      AS ts_ms
         FROM  `deal`
-        JOIN  `order` ON `order`.id    = deal.order_id
-        JOIN  `leg`   ON `leg`.deal_id = deal.id
+        JOIN  `order` ON `order`.`order` = deal.`order`
+        JOIN  `leg`   ON `leg`.`order`   = deal.`order` AND `leg`.`leg` = deal.`leg`
         WHERE
             `order`.open_milli >= UNIX_TIMESTAMP(:date_from) * 1000
             AND `order`.open_milli <  UNIX_TIMESTAMP(:date_to)  * 1000
