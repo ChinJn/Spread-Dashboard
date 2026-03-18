@@ -58,6 +58,15 @@ def build_query(date_from: str, date_to: str) -> str:
     return sql
 
 
+# ── Fetch available symbols ───────────────────────────────────────────────────
+def fetch_symbols() -> list[str]:
+    """Return a sorted list of distinct symbols from the order table."""
+    engine = _get_engine()
+    with engine.connect() as conn:
+        result = conn.execute(text("SELECT DISTINCT symbol FROM `order` ORDER BY symbol"))
+        return [row[0] for row in result]
+
+
 # ── Main fetch function ───────────────────────────────────────────────────────
 def fetch_data(date_from: str, date_to: str) -> pd.DataFrame:
     """

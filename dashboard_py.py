@@ -9,7 +9,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-from db        import fetch_data, fetch_sample_data
+from db        import fetch_data, fetch_sample_data, fetch_symbols
 from transform import (
     clean, add_spread_columns, agg_by_provider,
     agg_by_provider_symbol, spread_over_time,
@@ -43,57 +43,76 @@ def load(date_from: str, date_to: str, use_sample: bool) -> pd.DataFrame:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SIDEBAR  — global controls
+# SIDEBAR  — global controls (wrapped in a form so nothing runs until Search)
 # ─────────────────────────────────────────────────────────────────────────────
+@st.cache_data(ttl=3600)
+def get_symbols(use_sample: bool) -> list:
+    if use_sample:
+        return ["EURUSD", "GBPUSD", "USDJPY", "XAUUSD", "BTCUSD"]
+    try:
+        return fetch_symbols()
+    except Exception:
+        return []
+
 with st.sidebar:
     st.title("⚙️ Controls")
 
     use_sample = st.toggle("Use sample data (no DB needed)", value=True)
 
-    st.subheader("Date range")
-    col_a, col_b = st.columns(2)
-    date_from = col_a.date_input("From", value=pd.Timestamp("2024-01-01"))
-    date_to   = col_b.date_input("To",   value=pd.Timestamp("2024-01-31"))
+    with st.form("controls"):
+        st.subheader("Date range")
+        col_a, col_b = st.columns(2)
+        date_from = col_a.date_input("From", value=pd.Timestamp("2024-01-01"))
+        date_to   = col_b.date_input("To",   value=pd.Timestamp("2024-01-31"))
 
-    st.subheader("Resample frequency")
-    freq_label = st.selectbox(
-        "Time bucket",
-        ["15 min", "1 hour", "4 hours", "1 day"],
-        index=1,
-    )
-    freq_map = {"15 min": "15min", "1 hour": "1h",
-                "4 hours": "4h",  "1 day":  "1D"}
-    freq = freq_map[freq_label]
+        st.subheader("Symbol")
+        available_symbols = get_symbols(use_sample)
+        sel_symbols = st.multiselect(
+            "Select symbols", available_symbols, default=available_symbols[:5] if available_symbols else []
+        )
 
-    st.subheader("Display")
-    top_n = st.slider("Top N providers", 3, 30, DEFAULT_TOP_N_PROVIDERS)
+        st.subheader("Resample frequency")
+        freq_label = st.selectbox(
+            "Time bucket",
+            ["15 min", "1 hour", "4 hours", "1 day"],
+            index=1,
+        )
+
+        st.subheader("Display")
+        top_n = st.slider("Top N providers", 3, 30, DEFAULT_TOP_N_PROVIDERS)
+
+        searched = st.form_submit_button("🔍 Search", use_container_width=True)
+
     tz_label = DISPLAY_TIMEZONE or "UTC"
     st.caption(f"Timezone: **{tz_label}**")
 
+freq_map = {"15 min": "15min", "1 hour": "1h", "4 hours": "4h", "1 day": "1D"}
+freq = freq_map[freq_label]
 
 # ─────────────────────────────────────────────────────────────────────────────
-# LOAD DATA
+# LOAD DATA  — only runs when Search is clicked
 # ─────────────────────────────────────────────────────────────────────────────
-with st.spinner("Loading data…"):
-    df_all = load(str(date_from), str(date_to), use_sample)
+if "df_all" not in st.session_state:
+    st.info("Set your date range and symbols, then click **🔍 Search**.")
+    st.stop()
+
+if searched:
+    with st.spinner("Loading data…"):
+        st.session_state.df_all = load(str(date_from), str(date_to), use_sample)
+    st.session_state.date_from = str(date_from)
+    st.session_state.date_to   = str(date_to)
+
+df_all = st.session_state.df_all
 
 if df_all.empty:
     st.error("No data returned. Check your DB connection or date range.")
     st.stop()
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FILTERS — symbol & provider (applied after load so cache still helps)
+# FILTERS — provider (symbol already chosen before load)
 # ─────────────────────────────────────────────────────────────────────────────
-st.sidebar.subheader("Filters")
-all_symbols   = sorted(df_all["symbol"].unique())
 all_providers = sorted(df_all["provider"].unique())
-
-sel_symbols = st.sidebar.multiselect(
-    "Symbol", all_symbols, default=all_symbols[:5]
-)
-sel_providers = st.sidebar.multiselect(
-    "Provider", all_providers, default=all_providers
-)
+sel_providers = st.sidebar.multiselect("Provider", all_providers, default=all_providers)
 
 df = df_all.copy()
 if sel_symbols:
