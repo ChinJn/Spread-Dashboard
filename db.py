@@ -9,7 +9,7 @@ import os
 import pandas as pd
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
-from config import COLUMNS, TABLE_NAME
+from config import COLUMNS
 
 load_dotenv()   # reads .env file
 
@@ -26,41 +26,34 @@ def _get_engine():
     # PostgreSQL       →  postgresql+psycopg2://
     # MS SQL Server    →  mssql+pyodbc://?driver=ODBC+Driver+17+for+SQL+Server
     conn_str = f"mysql+pymysql://{user}:{password}@{host}:{port}/{db_name}"
-    return create_engine(conn_str, pool_pre_ping=True)
+    return create_engine(conn_str, pool_pre_ping=True, connect_args={"ssl": {"ssl_disabled": False}})
 
 
 # ── SQL query template ────────────────────────────────────────────────────────
 def build_query(date_from: str, date_to: str) -> str:
     """
-    Returns a parameterized SQL query string.
+    Returns a parameterized SQL query joining deal, `order`, and leg tables.
 
     date_from / date_to: 'YYYY-MM-DD' strings used to filter by timestamp.
-    Adjust the WHERE clause if your timestamp column is already a DATETIME
-    rather than milliseconds.
     """
-    c = COLUMNS      # shorthand alias
-
-    # Convert the ms timestamp boundaries to Unix ms integers
-    # so we can filter in the SQL layer before pulling rows.
-    sql = f"""
+    sql = """
         SELECT
-            `{c['provider']}`   AS provider,
-            `{c['symbol']}`     AS symbol,
-            `{c['bid']}`        AS bid,
-            `{c['ask']}`        AS ask,
-            `{c['size']}`       AS size,
-            `{c['digits']}`     AS digits,
-            `{c['timestamp']}`  AS ts_ms
-            -- OPTIONAL columns (uncomment if available in your schema):
-            -- ,`{c['markup']}`   AS markup
-            -- ,`{c['fill_price']}` AS fill_price
-        FROM  `{TABLE_NAME}`
+            leg.provider            AS provider,
+            `order`.symbol          AS symbol,
+            `order`.bid             AS bid,
+            `order`.ask             AS ask,
+            deal.size               AS size,
+            `order`.digits          AS digits,
+            `order`.open_milli      AS ts_ms
+        FROM  `deal`
+        JOIN  `order` ON `order`.id    = deal.order_id
+        JOIN  `leg`   ON `leg`.deal_id = deal.id
         WHERE
-            `{c['timestamp']}` >= UNIX_TIMESTAMP(:date_from) * 1000
-            AND `{c['timestamp']}` <  UNIX_TIMESTAMP(:date_to)  * 1000
-            AND `{c['bid']}`  > 0
-            AND `{c['ask']}`  > 0
-        ORDER BY `{c['timestamp']}` ASC
+            `order`.open_milli >= UNIX_TIMESTAMP(:date_from) * 1000
+            AND `order`.open_milli <  UNIX_TIMESTAMP(:date_to)  * 1000
+            AND `order`.bid > 0
+            AND `order`.ask > 0
+        ORDER BY `order`.open_milli ASC
     """
     return sql
 

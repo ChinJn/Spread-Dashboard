@@ -9,7 +9,7 @@
 DISPLAY_TIMEZONE = "Asia/Kuala_Lumpur"
 
 # ── SQL table name ────────────────────────────────────────────────────────────
-TABLE_NAME = "deals"           # Change to your actual table name
+TABLE_NAME = "deal"
 
 # ── Column name mappings ──────────────────────────────────────────────────────
 # Left  = internal name used throughout the project (do NOT change)
