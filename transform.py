@@ -159,9 +159,9 @@ def heatmap_provider_hour(df: pd.DataFrame) -> pd.DataFrame:
 # ── 7. Aggregate by hour ─────────────────────────────────────────────────────
 def agg_by_hour(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Returns one row per hour (0–23) with spread KPIs.
+    Returns one row per (hour, symbol, provider) with spread KPIs.
     """
-    grp = df.groupby("hour")
+    grp = df.groupby(["hour", "symbol", "provider"])
     agg = grp.apply(
         lambda g: pd.Series({
             "weighted_avg_spread": (
@@ -175,7 +175,7 @@ def agg_by_hour(df: pd.DataFrame) -> pd.DataFrame:
             "trade_count":  len(g),
         })
     ).reset_index()
-    return agg.sort_values("hour")
+    return agg.sort_values(["hour", "symbol", "provider"])
 
 
 # ── 8. Global KPIs (for KPI card row) ────────────────────────────────────────

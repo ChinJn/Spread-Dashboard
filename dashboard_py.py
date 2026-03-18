@@ -244,17 +244,22 @@ for c in ["weighted_avg_spread", "avg_spread", "min_spread", "max_spread"]:
     hour_display[c] = hour_display[c].map("{:.5f}".format)
 hour_display["total_volume"] = hour_display["total_volume"].map("{:,.2f}".format)
 
+hour_display = hour_display[["hour", "symbol", "weighted_avg_spread", "avg_spread",
+                              "min_spread", "max_spread", "total_volume", "provider", "trade_count"]]
+
 st.dataframe(
     hour_display,
     use_container_width=True,
     hide_index=True,
     column_config={
         "hour":                st.column_config.TextColumn("Hour"),
+        "symbol":              st.column_config.TextColumn("Symbol"),
         "weighted_avg_spread": st.column_config.TextColumn("Wtd Avg Spread"),
         "avg_spread":          st.column_config.TextColumn("Avg Spread"),
         "min_spread":          st.column_config.TextColumn("Min Spread"),
         "max_spread":          st.column_config.TextColumn("Max Spread"),
         "total_volume":        st.column_config.TextColumn("Volume (lots)"),
+        "provider":            st.column_config.TextColumn("Provider"),
         "trade_count":         st.column_config.NumberColumn("Trades"),
     },
 )
